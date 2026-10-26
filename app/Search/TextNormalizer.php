@@ -6,15 +6,17 @@ namespace App\Search;
  * Turns Hebrew/English text into comparable tokens.
  *
  * Lowercases, drops niqqud and gershayim, splits on anything that is not a
- * letter or digit. For query tokens it also yields lighter Hebrew forms:
- * without a one-letter prefix (השואב → שואב) and without a plural suffix
- * (בלנדרים → בלנדר). Catalog tokens are kept as written.
+ * letter or digit, and writes final letters as regular ones (ם → מ). Hebrew
+ * tokens also get lighter forms: without a one-letter prefix (השואב → שואב)
+ * and without a plural suffix (בלנדרים → בלנדר). The query looks up its forms;
+ * the index stores the forms of catalog tokens too ("לתינוק" → "תינוק").
  */
 class TextNormalizer
 {
     private const HEBREW_PREFIXES = ['ה', 'ו', 'ב', 'ל', 'ש', 'מ', 'כ'];
 
-    private const HEBREW_PLURAL_SUFFIXES = ['ים', 'ות'];
+    // Written as after normalize(): final mem is a regular one (ים → ימ).
+    private const HEBREW_PLURAL_SUFFIXES = ['ימ', 'ות'];
 
     /** @var array<string, true> */
     private array $stopwords;
@@ -33,6 +35,8 @@ class TextNormalizer
         $text = preg_replace('/\p{Mn}+/u', '', $text);
         $text = preg_replace('/[\'"`׳״’]/u', '', $text);
         $text = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $text);
+        // Final letters as regular ones, so "סכינים" minus its suffix ("סכינ") matches "סכין".
+        $text = strtr($text, ['ך' => 'כ', 'ם' => 'מ', 'ן' => 'נ', 'ף' => 'פ', 'ץ' => 'צ']);
 
         return trim($text);
     }

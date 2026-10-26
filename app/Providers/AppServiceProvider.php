@@ -48,6 +48,8 @@ class AppServiceProvider extends ServiceProvider
             config('search.embeddings'),
             config('search.vector_min_similarity'),
             config('search.vector_relative_margin'),
+            config('search.vector_min_results'),
+            config('search.subcategory_coherence'),
             config('search.rrf_k'),
             config('search.max_results'),
         ));

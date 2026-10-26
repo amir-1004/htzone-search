@@ -25,6 +25,8 @@ class ProductSearch
         private array $embeddingConfig,
         private float $minSimilarity,
         private float $relativeMargin,
+        private int $minVectorResults,
+        private bool $coherence,
         private int $rrfK,
         private int $maxResults,
     ) {}
@@ -55,6 +57,10 @@ class ProductSearch
 
         $rankStart = hrtime(true);
         $keywordRanking = $this->keywords->rank($query, $documents);
+
+        if ($vectorRanking !== null && $this->coherence) {
+            $vectorRanking = $this->keepCoherent($vectorRanking, $keywordRanking, $documents);
+        }
         $ids = $this->fuse($vectorRanking, $keywordRanking);
         $timings['rank_ms'] = $this->elapsed($rankStart);
         $timings['total_ms'] = $this->elapsed($start);
@@ -112,11 +118,65 @@ class ProductSearch
 
         $top = reset($similarities);
         $cutoff = max($this->minSimilarity, $top - $this->relativeMargin);
+        $rank = 0;
 
-        return [
-            array_filter($similarities, fn (float $similarity) => $similarity >= $cutoff),
-            $top,
-        ];
+        // The margin keeps weak matches out, but one near-exact match ("מארז מתנה לאמא"
+        // for "מתנה לאמא טריה") must not hide everything else: always keep the best few
+        // that clear the absolute threshold. (A closure, not fn(): $rank must persist.)
+        $kept = array_filter($similarities, function (float $similarity) use (&$rank, $cutoff) {
+            return ++$rank <= $this->minVectorResults
+                ? $similarity >= $this->minSimilarity
+                : $similarity >= $cutoff;
+        });
+
+        return [$kept, $top];
+    }
+
+    /**
+     * Products found by meaning only must share a subcategory with what the query
+     * is clearly about. Otherwise "שעון יד" brings wall clocks and a cooking timer,
+     * and "סכינים" brings cups and a juicer at the end of the list.
+     *
+     * The query's subcategories: those of strong keyword hits when there are any
+     * ("סכינים" → knives), otherwise those that repeat among the best meaning hits
+     * ("שעון יד" → smartwatches). The best few meaning hits always stay, so a query
+     * that spans categories ("מתנה למישהו שאוהב לבשל") keeps its range.
+     *
+     * @param  array<int, float>  $vectorRanking
+     * @param  array<int, float>  $keywordRanking
+     * @return array<int, float>
+     */
+    private function keepCoherent(array $vectorRanking, array $keywordRanking, array $documents): array
+    {
+        $core = array_slice($vectorRanking, 0, 3, true);
+        $strongKeywordHits = array_filter($keywordRanking, fn (float $score) => $score >= 0.5);
+
+        $subcategoryOf = fn (int $id) => $documents[$id]['subcategory'];
+        $keywordSubcategories = array_count_values(array_map($subcategoryOf, array_keys($strongKeywordHits)));
+
+        // With many strong hits, one stray ("מגש גבינות עם סכיני הגשה" for "סכינים")
+        // must not pull its whole subcategory in: keep the subcategories that repeat.
+        if (count($strongKeywordHits) >= 3) {
+            $keywordSubcategories = array_filter($keywordSubcategories, fn (int $count) => $count >= 2);
+        }
+
+        $focus = [...array_map($subcategoryOf, array_keys($core)), ...array_keys($keywordSubcategories)];
+
+        if ($strongKeywordHits === []) {
+            $repeated = array_filter(
+                array_count_values(array_map($subcategoryOf, array_keys(array_slice($vectorRanking, 0, 10, true)))),
+                fn (int $count) => $count >= 2,
+            );
+            $focus = [...$focus, ...array_keys($repeated)];
+        }
+
+        $focus = array_flip($focus);
+
+        return array_filter(
+            $vectorRanking,
+            fn (int $id) => isset($core[$id]) || isset($keywordRanking[$id]) || isset($focus[$subcategoryOf($id)]),
+            ARRAY_FILTER_USE_KEY,
+        );
     }
 
     /**

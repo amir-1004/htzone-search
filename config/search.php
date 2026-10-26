@@ -58,6 +58,13 @@ return [
     // hundreds of weak matches.
     'vector_relative_margin' => (float) env('SEARCH_VECTOR_RELATIVE_MARGIN', 0.10),
 
+    // ...but always keep at least this many above the absolute threshold, so one
+    // near-exact match cannot hide every related product.
+    'vector_min_results' => (int) env('SEARCH_VECTOR_MIN_RESULTS', 6),
+
+    // Meaning-only hits must share a subcategory with the query's focus (ProductSearch::keepCoherent).
+    'subcategory_coherence' => (bool) env('SEARCH_SUBCATEGORY_COHERENCE', true),
+
     // Fraction of the query's terms a product must match to count as a keyword hit.
     'keyword_min_coverage' => 0.5,
 
@@ -118,6 +125,13 @@ return [
         'laptop' => 'מחשב נייד',
         'headphones' => 'אוזניות',
         'vacuum' => 'שואב אבק',
+
+        // Multi-word phrases (matched before splitting into words).
+        'אמא טריה' => 'אמא תינוק לידה',
+        'אמא טרייה' => 'אמא תינוק לידה',
+        'ללידה' => 'לידה תינוק אמא',
+        'ליולדת' => 'אמא תינוק לידה',
+        'יולדת' => 'אמא תינוק לידה',
     ],
 
 ];

@@ -97,6 +97,34 @@ it('ranks by meaning when vectors are available', function () {
         ->assertJsonPath('search.match', 'related');
 });
 
+/** A unit vector whose similarity to axisVector(0) is $similarity. */
+function vectorAt(float $similarity): array
+{
+    $vector = array_fill(0, 512, 0.0);
+    $vector[0] = $similarity;
+    $vector[1] = sqrt(1 - $similarity ** 2);
+
+    return $vector;
+}
+
+it('drops meaning-only results from subcategories the query is not about', function (bool $coherence, bool $kept) {
+    config(['search.subcategory_coherence' => $coherence]);
+
+    foreach (['P0937' => 1.0, 'P0936' => 0.97, 'P0940' => 0.96, 'P0939' => 0.95, 'P0949' => 0.94] as $sku => $similarity) {
+        Product::where('sku', $sku)->first()->forceFill(['embedding' => VectorMath::pack(vectorAt($similarity))])->save();
+    }
+    fakeEmbeddings(axisVector(0));
+
+    $skus = array_column($this->getJson('/api/search?q=xyzzy')->assertOk()->json('data'), 'sku');
+
+    // Four dog products (כלבים) lead; the small-pet carrier (כללי לחיות מחמד) is off-topic.
+    expect($skus)->toContain('P0937', 'P0936', 'P0940', 'P0939')
+        ->and(in_array('P0949', $skus, true))->toBe($kept);
+})->with([
+    'coherence on' => [true, false],
+    'coherence off' => [false, true],
+]);
+
 it('falls back to keywords when the embedding provider fails', function () {
     Product::where('sku', 'P0950')->first()
         ->forceFill(['embedding' => VectorMath::pack(axisVector(0))])->save();

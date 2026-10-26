@@ -36,12 +36,17 @@ class KeywordRanker
      */
     public function termGroups(string $query): array
     {
-        return array_map(
-            fn (string $token) => isset($this->aliases[$token])
-                ? $this->normalizer->tokens($this->aliases[$token])
-                : [$token],
-            $this->normalizer->tokens($query),
-        );
+        [$phraseExpansions, $rest] = $this->extractPhrases($query);
+
+        return [
+            ...array_map(fn (string $expansion) => $this->normalizer->tokens($expansion), $phraseExpansions),
+            ...array_map(
+                fn (string $token) => isset($this->aliases[$token])
+                    ? $this->normalizer->tokens($this->aliases[$token])
+                    : [$token],
+                $this->normalizer->tokens($rest),
+            ),
+        ];
     }
 
     /**
@@ -49,10 +54,33 @@ class KeywordRanker
      */
     public function expansionText(string $query): string
     {
-        return implode(' ', array_filter(array_map(
-            fn (string $token) => $this->aliases[$token] ?? null,
-            $this->normalizer->tokens($query),
-        )));
+        [$phraseExpansions, $rest] = $this->extractPhrases($query);
+
+        return implode(' ', [
+            ...$phraseExpansions,
+            ...array_filter(array_map(fn (string $token) => $this->aliases[$token] ?? null, $this->normalizer->tokens($rest))),
+        ]);
+    }
+
+    /**
+     * Multi-word aliases ("אמא טריה") are matched on the normalized query before
+     * it is split into tokens.
+     *
+     * @return array{0: list<string>, 1: string} Expansions found, and the query without those phrases.
+     */
+    private function extractPhrases(string $query): array
+    {
+        $normalized = ' '.$this->normalizer->normalize($query).' ';
+        $expansions = [];
+
+        foreach ($this->aliases as $phrase => $expansion) {
+            if (str_contains($phrase, ' ') && str_contains($normalized, " {$phrase} ")) {
+                $expansions[] = $expansion;
+                $normalized = str_replace(" {$phrase} ", ' ', $normalized);
+            }
+        }
+
+        return [$expansions, $normalized];
     }
 
     /**

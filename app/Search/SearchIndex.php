@@ -12,7 +12,13 @@ use Illuminate\Support\Facades\Cache;
  */
 class SearchIndex
 {
-    /** @var array<int, array{fields: array<string, array<string, true>>, vector: ?string}>|null */
+    /**
+     * Bump when the shape of a cached document changes, so a deploy never
+     * reads an index built by older code.
+     */
+    private const FORMAT = 5;
+
+    /** @var array<int, array{fields: array<string, array<string, true>>, vector: ?string, subcategory: string}>|null */
     private ?array $documents = null;
 
     public function __construct(
@@ -21,12 +27,12 @@ class SearchIndex
     ) {}
 
     /**
-     * @return array<int, array{fields: array<string, array<string, true>>, vector: ?string}> Keyed by product id.
+     * @return array<int, array{fields: array<string, array<string, true>>, vector: ?string, subcategory: string}> Keyed by product id.
      */
     public function documents(): array
     {
         return $this->documents ??= Cache::store($this->cacheStore)->remember(
-            'search-index:'.$this->version(),
+            'search-index:v'.self::FORMAT.':'.$this->version(),
             now()->addDay(),
             fn () => $this->build(),
         );
@@ -63,12 +69,17 @@ class SearchIndex
                 $fields = [];
 
                 foreach (['name', 'brand', 'subcategory', 'category', 'specs', 'description'] as $field) {
-                    $fields[$field] = array_fill_keys($this->normalizer->tokens((string) $product->{$field}), true);
+                    $tokens = [];
+                    foreach ($this->normalizer->tokens((string) $product->{$field}) as $token) {
+                        $tokens += $this->normalizer->variants($token);
+                    }
+                    $fields[$field] = array_fill_keys(array_keys($tokens), true);
                 }
 
                 $documents[$product->id] = [
                     'fields' => $fields,
                     'vector' => $product->embedding,
+                    'subcategory' => $product->subcategory,
                 ];
             });
 

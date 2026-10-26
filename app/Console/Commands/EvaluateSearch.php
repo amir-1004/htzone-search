@@ -38,6 +38,27 @@ class EvaluateSearch extends Command
                 $score = "{$relevant}/{$k} (need {$case['min_relevant_in_top_k']})";
             }
 
+            // Precision over the whole result list, not only the top k.
+            $isRelevant = fn (Product $p) => in_array($p->sku, $case['relevant_ids'] ?? [], true)
+                || in_array($p->subcategory, $case['relevant_subcategories'] ?? [], true)
+                || in_array($p->category, $case['relevant_categories'] ?? [], true);
+            $all = isset($case['forbidden_ids']) || isset($case['max_irrelevant_total']) ? Product::findMany($result->ids) : collect();
+
+            if ($forbidden = $all->whereIn('sku', $case['forbidden_ids'] ?? [])->pluck('sku')->all()) {
+                $ok = false;
+                $score .= ' · forbidden '.implode(',', $forbidden);
+            }
+
+            if (isset($case['max_irrelevant_total']) && ($irrelevant = $all->reject($isRelevant)->count()) > $case['max_irrelevant_total']) {
+                $ok = false;
+                $score .= " · {$irrelevant} irrelevant";
+            }
+
+            if (isset($case['min_total']) && count($result->ids) < $case['min_total']) {
+                $ok = false;
+                $score .= ' · only '.count($result->ids);
+            }
+
             if (isset($case['expect_match']) && $result->match() !== $case['expect_match']) {
                 $ok = false;
                 $score .= " · match {$result->match()}";
