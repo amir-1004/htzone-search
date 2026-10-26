@@ -16,7 +16,9 @@
 
 ## בדיקה
 
-- **Pest:** `php artisan test`.
+- **Pest:** `./vendor/bin/sail artisan test` (רץ על מסד `testing` ב-MySQL).
+- **וקטורים:** `./vendor/bin/sail artisan catalog:embed`. דורש `OPENAI_API_KEY` ב-`.env`.
+- **סט הזהב:** `./vendor/bin/sail artisan search:eval`. אפשר להוסיף `--keyword-only` לקו בסיס.
 - **סט הזהב:** `tests/golden/queries.json`. אחרי כל שינוי במנוע החיפוש, מריצים את פקודת הסט ומשווים רלוונטיות וזמנים לפני ואחרי.
 - **החובה:** שינוי שמוריד חיפוש שעבר בסט הזהב לא נכנס בלי הסבר.
 
