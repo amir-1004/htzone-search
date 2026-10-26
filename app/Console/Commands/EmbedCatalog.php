@@ -22,7 +22,7 @@ class EmbedCatalog extends Command
             ->select(['id', 'name', 'brand', 'category', 'subcategory', 'description', 'specs', 'embedding_hash'])
             ->get()
             ->filter(fn (Product $product) => $this->option('force')
-                || $product->embedding_hash !== sha1($product->embeddingText()));
+                || $product->embedding_hash !== $this->fingerprint($product->embeddingText()));
 
         if ($pending->isEmpty()) {
             $this->info('All products are already embedded.');
@@ -51,7 +51,7 @@ class EmbedCatalog extends Command
             foreach ($batch->values() as $i => $product) {
                 $product->forceFill([
                     'embedding' => VectorMath::pack($vectors[$i]),
-                    'embedding_hash' => sha1($texts[$i]),
+                    'embedding_hash' => $this->fingerprint($texts[$i]),
                 ])->save();
             }
 
@@ -63,6 +63,15 @@ class EmbedCatalog extends Command
         $this->info('Done.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Identifies what was embedded and how: changing the text, the model or the
+     * dimensions all make a product pending again.
+     */
+    private function fingerprint(string $text): string
+    {
+        return sha1(config('search.embeddings.model').'|'.config('search.embeddings.dimensions').'|'.$text);
     }
 
     /**

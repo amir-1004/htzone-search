@@ -31,9 +31,10 @@ it('returns products with image, name and price', function () {
         ->assertJsonStructure([
             'data' => [['sku', 'name', 'brand', 'image_url', 'price', 'price_is_demo']],
             'meta' => ['current_page', 'per_page', 'total'],
-            'search' => ['query', 'mode', 'took_ms'],
+            'search' => ['query', 'mode', 'match', 'took_ms'],
         ])
-        ->assertJsonPath('data.0.price_is_demo', true);
+        ->assertJsonPath('data.0.price_is_demo', true)
+        ->assertJsonPath('search.match', 'exact');
 });
 
 it('finds Apple phones for "אייפון" through the alias dictionary', function () {
@@ -91,7 +92,8 @@ it('ranks by meaning when vectors are available', function () {
         ->assertOk()
         ->assertJsonPath('search.mode', 'hybrid')
         ->assertJsonPath('data.0.sku', 'P0950')
-        ->assertJsonPath('meta.total', 1);
+        ->assertJsonPath('meta.total', 1)
+        ->assertJsonPath('search.match', 'related');
 });
 
 it('falls back to keywords when the embedding provider fails', function () {

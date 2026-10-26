@@ -61,6 +61,7 @@ class ProductSearch
             mode: $vectorRanking !== null ? SearchResult::MODE_HYBRID : SearchResult::MODE_KEYWORD,
             timings: $timings,
             topSimilarity: $topSimilarity,
+            keywordHits: count($keywordRanking),
         );
     }
 

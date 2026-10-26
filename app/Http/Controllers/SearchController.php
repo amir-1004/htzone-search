@@ -47,6 +47,7 @@ class SearchController extends Controller
             'search' => [
                 'query' => $query,
                 'mode' => $result->mode,
+                'match' => $result->match(),
                 'took_ms' => $result->timings['total_ms'] ?? 0,
             ],
         ]);

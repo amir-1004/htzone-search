@@ -32,3 +32,12 @@ it('skips products whose text has not changed', function () {
     Http::assertSentCount(11);
     Http::assertSent(fn (Request $request) => count($request['input']) === 1);
 });
+
+it('re-embeds every product when the model changes', function () {
+    $this->artisan('catalog:embed');
+    config(['search.embeddings.model' => 'another-embedding-model']);
+
+    $this->artisan('catalog:embed')->assertSuccessful();
+
+    Http::assertSentCount(20);
+});

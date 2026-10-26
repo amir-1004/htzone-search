@@ -38,6 +38,11 @@ class EvaluateSearch extends Command
                 $score = "{$relevant}/{$k} (need {$case['min_relevant_in_top_k']})";
             }
 
+            if (isset($case['expect_match']) && $result->match() !== $case['expect_match']) {
+                $ok = false;
+                $score .= " · match {$result->match()}";
+            }
+
             $passed += (int) $ok;
             $latencies[] = $result->timings['total_ms'];
 
@@ -46,7 +51,7 @@ class EvaluateSearch extends Command
                 $case['id'],
                 mb_strimwidth($case['query'], 0, 32, '…'),
                 $score,
-                $result->mode,
+                "{$result->mode}/{$result->match()}",
                 $result->topSimilarity !== null ? number_format($result->topSimilarity, 3) : '-',
                 $result->timings['total_ms'],
                 mb_strimwidth($top->take(3)->pluck('name')->implode(' | '), 0, 70, '…'),

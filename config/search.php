@@ -25,7 +25,7 @@ return [
     */
 
     'embeddings' => [
-        'model' => env('EMBEDDING_MODEL', 'text-embedding-3-small'),
+        'model' => env('EMBEDDING_MODEL', 'text-embedding-3-large'),
         'dimensions' => 512,
         'query_timeout' => 2.0,
         'batch_timeout' => 60.0,
@@ -50,12 +50,12 @@ return [
 
     // Calibrated on the golden set (search:eval): gibberish tops out at 0.27,
     // the weakest real query (a bare brand name) starts at 0.41.
-    'vector_min_similarity' => (float) env('SEARCH_VECTOR_MIN_SIMILARITY', 0.34),
+    'vector_min_similarity' => (float) env('SEARCH_VECTOR_MIN_SIMILARITY', 0.30),
 
     // Keep only vector hits close to the best one. Average similarity to an
     // unrelated product is 0.25-0.33, so an absolute cutoff alone lets in
     // hundreds of weak matches.
-    'vector_relative_margin' => 0.10,
+    'vector_relative_margin' => (float) env('SEARCH_VECTOR_RELATIVE_MARGIN', 0.10),
 
     // Fraction of the query's terms a product must match to count as a keyword hit.
     'keyword_min_coverage' => 0.5,
@@ -76,6 +76,8 @@ return [
         'של', 'את', 'עם', 'על', 'לי', 'לו', 'לה', 'זה', 'גם', 'או', 'אני', 'אנחנו',
         'משהו', 'מישהו', 'למישהו', 'שיעזור', 'שיעזרו', 'שאוהב', 'שאוהבת', 'רוצה', 'מחפש', 'מחפשת',
         'צריך', 'צריכה', 'טוב', 'הכי', 'בשביל', 'עבור', 'כמו', 'יש', 'אין', 'מה', 'איזה',
+        // Generic nouns that describe "a product", not which one.
+        'ציוד', 'מוצר', 'מוצרים', 'דברים', 'אביזר', 'אביזרים',
         'a', 'an', 'the', 'for', 'of', 'to', 'with', 'and', 'or', 'something', 'someone', 'who', 'loves', 'i', 'my',
     ],
 
