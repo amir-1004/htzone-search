@@ -89,11 +89,39 @@ class KeywordRanker
      */
     public function rank(string $query, array $documents): array
     {
+        return $this->match($query, $documents)['scores'];
+    }
+
+    /**
+     * Scores, plus the products that contain every term of the query ("טוחן קרח"
+     * in a blender's description): a strong signal even when the match is weak
+     * in field weight.
+     *
+     * @param  array<int, array{fields: array<string, array<string, true>>}>  $documents
+     * @return array{scores: array<int, float>, complete: array<int, true>}
+     */
+    public function match(string $query, array $documents): array
+    {
         $groups = $this->termGroups($query);
 
         if ($groups === []) {
-            return [];
+            return ['scores' => [], 'complete' => []];
         }
+
+        // Spelling skeletons are ambiguous ("סכינים" and "מסוכנים" share one), so they
+        // are a fallback: used only when no product contains every term as written.
+        $strict = $this->matchGroups($groups, $documents, minConfidence: 0.7);
+
+        return $strict['complete'] !== [] ? $strict : $this->matchGroups($groups, $documents, minConfidence: 0.0);
+    }
+
+    /**
+     * @param  list<list<string>>  $groups
+     * @return array{scores: array<int, float>, complete: array<int, true>}
+     */
+    private function matchGroups(array $groups, array $documents, float $minConfidence): array
+    {
+        $complete = [];
 
         $maxWeight = max($this->fieldWeights);
         $scores = [];
@@ -110,7 +138,7 @@ class KeywordRanker
                 $groupScore = 0.0;
 
                 foreach ($terms as $term) {
-                    $groupScore += $this->termScore($term, $document['fields']) / $maxWeight;
+                    $groupScore += $this->termScore($term, $document['fields'], $minConfidence) / $maxWeight;
                 }
 
                 $groupScore /= count($terms);
@@ -124,21 +152,29 @@ class KeywordRanker
             if ($covered >= $required) {
                 $scores[$id] = $total / count($groups);
             }
+
+            if ($covered === count($groups)) {
+                $complete[$id] = true;
+            }
         }
 
         arsort($scores);
 
-        return $scores;
+        return ['scores' => $scores, 'complete' => $complete];
     }
 
     /**
      * @param  array<string, array<string, true>>  $fields
      */
-    private function termScore(string $term, array $fields): float
+    private function termScore(string $term, array $fields, float $minConfidence): float
     {
         $best = 0.0;
 
         foreach ($this->normalizer->variants($term) as $variant => $confidence) {
+            if ($confidence < $minConfidence) {
+                continue;
+            }
+
             foreach ($fields as $field => $tokens) {
                 $weight = ($this->fieldWeights[$field] ?? 1.0) * $confidence;
 
@@ -148,7 +184,8 @@ class KeywordRanker
 
                 if (isset($tokens[$variant])) {
                     $best = $weight;
-                } elseif (mb_strlen($variant) >= 3 && $this->hasPrefixMatch($variant, $tokens)) {
+                } elseif ($confidence >= 0.7 && mb_strlen($variant) >= 3 && $this->hasPrefixMatch($variant, $tokens)) {
+                    // Prefixes only for real word forms: a spelling skeleton ("סכנ") would catch "סכנה".
                     $best = max($best, $weight * 0.75);
                 }
             }

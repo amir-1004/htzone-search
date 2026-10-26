@@ -8,7 +8,8 @@ namespace App\Search;
  * Lowercases, drops niqqud and gershayim, splits on anything that is not a
  * letter or digit, and writes final letters as regular ones (ם → מ). Hebrew
  * tokens also get lighter forms: without a one-letter prefix (השואב → שואב)
- * and without a plural suffix (בלנדרים → בלנדר). The query looks up its forms;
+ * and without a plural suffix (בלנדרים → בלנדר), plus a skeleton without
+ * vowel letters (טוחן, טחון → טחנ). The query looks up its forms;
  * the index stores the forms of catalog tokens too ("לתינוק" → "תינוק").
  */
 class TextNormalizer
@@ -83,6 +84,23 @@ class TextNormalizer
             $variants[mb_substr($token, 1)] ??= 0.8;
         }
 
+        // Spelling with or without vowel letters: "טוחן" and "(ל)טחון" share the skeleton "טחנ".
+        foreach ($variants as $variant => $confidence) {
+            $skeleton = $this->skeleton($variant);
+
+            if ($skeleton !== $variant && mb_strlen($skeleton) >= 3) {
+                $variants[$skeleton] ??= $confidence * 0.6;
+            }
+        }
+
         return $variants;
+    }
+
+    /**
+     * The word without ו/י after its first letter (Hebrew "full" vs "defective" spelling).
+     */
+    private function skeleton(string $token): string
+    {
+        return mb_substr($token, 0, 1).str_replace(['ו', 'י'], '', mb_substr($token, 1));
     }
 }

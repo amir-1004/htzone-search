@@ -88,7 +88,8 @@ it('ranks by meaning when vectors are available', function () {
         ->forceFill(['embedding' => VectorMath::pack(axisVector(1))])->save();
     fakeEmbeddings(axisVector(0));
 
-    $this->getJson('/api/search?q='.urlencode('משהו שיעזור לנקות שערות של כלב מהספה'))
+    // A query with no keyword overlap, so only the meaning channel can find P0950.
+    $this->getJson('/api/search?q=xyzzy')
         ->assertOk()
         ->assertJsonPath('search.mode', 'hybrid')
         ->assertJsonPath('search.degraded', false)

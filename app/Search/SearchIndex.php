@@ -16,7 +16,7 @@ class SearchIndex
      * Bump when the shape of a cached document changes, so a deploy never
      * reads an index built by older code.
      */
-    private const FORMAT = 5;
+    private const FORMAT = 7;
 
     /** @var array<int, array{fields: array<string, array<string, true>>, vector: ?string, subcategory: string}>|null */
     private ?array $documents = null;

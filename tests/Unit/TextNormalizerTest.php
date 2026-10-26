@@ -15,6 +15,14 @@ it('writes final letters as regular ones, so a stripped plural matches', functio
         ->and($normalizer->variants($normalizer->normalize('סכינים')))->toHaveKey('סכינ');
 });
 
+it('matches spellings with and without vowel letters', function () {
+    $normalizer = new TextNormalizer;
+    $query = $normalizer->variants($normalizer->normalize('טוחן'));
+    $catalog = $normalizer->variants($normalizer->normalize('לטחון'));
+
+    expect(array_intersect_key($query, $catalog))->toHaveKey('טחנ');
+});
+
 it('drops stopwords from tokens', function () {
     $normalizer = new TextNormalizer(['משהו', 'של']);
 

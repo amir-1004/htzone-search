@@ -56,10 +56,10 @@ class ProductSearch
         }
 
         $rankStart = hrtime(true);
-        $keywordRanking = $this->keywords->rank($query, $documents);
+        ['scores' => $keywordRanking, 'complete' => $completeMatches] = $this->keywords->match($query, $documents);
 
         if ($vectorRanking !== null && $this->coherence) {
-            $vectorRanking = $this->keepCoherent($vectorRanking, $keywordRanking, $documents);
+            $vectorRanking = $this->keepCoherent($vectorRanking, $keywordRanking, $completeMatches, $documents);
         }
         $ids = $this->fuse($vectorRanking, $keywordRanking);
         $timings['rank_ms'] = $this->elapsed($rankStart);
@@ -137,40 +137,37 @@ class ProductSearch
      * is clearly about. Otherwise "שעון יד" brings wall clocks and a cooking timer,
      * and "סכינים" brings cups and a juicer at the end of the list.
      *
-     * The query's subcategories: those of strong keyword hits when there are any
-     * ("סכינים" → knives), otherwise those that repeat among the best meaning hits
-     * ("שעון יד" → smartwatches). The best few meaning hits always stay, so a query
-     * that spans categories ("מתנה למישהו שאוהב לבשל") keeps its range.
+     * The query's subcategories: those of products that contain every query term
+     * when there are any ("סכינים" → knives, "טוחן קרח" → the blender whose
+     * description says it crushes ice), otherwise those that repeat among the best
+     * meaning hits ("שעון יד" → smartwatches), with the best three always kept so a
+     * query that spans categories ("מתנה למישהו שאוהב לבשל") keeps its range.
      *
      * @param  array<int, float>  $vectorRanking
      * @param  array<int, float>  $keywordRanking
+     * @param  array<int, true>  $completeMatches
      * @return array<int, float>
      */
-    private function keepCoherent(array $vectorRanking, array $keywordRanking, array $documents): array
+    private function keepCoherent(array $vectorRanking, array $keywordRanking, array $completeMatches, array $documents): array
     {
-        $core = array_slice($vectorRanking, 0, 3, true);
-        $strongKeywordHits = array_filter($keywordRanking, fn (float $score) => $score >= 0.5);
-
         $subcategoryOf = fn (int $id) => $documents[$id]['subcategory'];
-        $keywordSubcategories = array_count_values(array_map($subcategoryOf, array_keys($strongKeywordHits)));
 
-        // With many strong hits, one stray ("מגש גבינות עם סכיני הגשה" for "סכינים")
-        // must not pull its whole subcategory in: keep the subcategories that repeat.
-        if (count($strongKeywordHits) >= 3) {
-            $keywordSubcategories = array_filter($keywordSubcategories, fn (int $count) => $count >= 2);
-        }
-
-        $focus = [...array_map($subcategoryOf, array_keys($core)), ...array_keys($keywordSubcategories)];
-
-        if ($strongKeywordHits === []) {
-            $repeated = array_filter(
+        if ($completeMatches !== []) {
+            // The query's own words point at the subcategories. A few strays ("מגש גבינות
+            // עם סכיני הגשה" for "סכינים") must not pull theirs in: keep a real share.
+            $counts = array_count_values(array_map($subcategoryOf, array_keys($completeMatches)));
+            $total = count($completeMatches);
+            $focus = $total >= 3 ? array_filter($counts, fn (int $count) => $count / $total >= 0.25) : $counts;
+            $core = [];
+        } else {
+            // Only meaning to go on: subcategories that repeat among the best hits, and the
+            // best three always stay, so a query that spans categories keeps its range.
+            $core = array_slice($vectorRanking, 0, 3, true);
+            $focus = array_filter(
                 array_count_values(array_map($subcategoryOf, array_keys(array_slice($vectorRanking, 0, 10, true)))),
                 fn (int $count) => $count >= 2,
             );
-            $focus = [...$focus, ...array_keys($repeated)];
         }
-
-        $focus = array_flip($focus);
 
         return array_filter(
             $vectorRanking,
