@@ -24,6 +24,7 @@ class ProductSearch
         private Embedder $embedder,
         private array $embeddingConfig,
         private float $minSimilarity,
+        private float $relativeMargin,
         private int $rrfK,
         private int $maxResults,
     ) {}
@@ -51,7 +52,7 @@ class ProductSearch
 
         $rankStart = hrtime(true);
         $keywordRanking = $this->keywords->rank($query, $documents);
-        $ids = $this->fuse(array_filter([$vectorRanking, $keywordRanking], fn ($ranking) => $ranking !== null));
+        $ids = $this->fuse($vectorRanking, $keywordRanking);
         $timings['rank_ms'] = $this->elapsed($rankStart);
         $timings['total_ms'] = $this->elapsed($start);
 
@@ -100,28 +101,40 @@ class ProductSearch
 
         arsort($similarities);
 
+        if ($similarities === []) {
+            return [[], null];
+        }
+
+        $top = reset($similarities);
+        $cutoff = max($this->minSimilarity, $top - $this->relativeMargin);
+
         return [
-            array_filter($similarities, fn (float $similarity) => $similarity >= $this->minSimilarity),
-            $similarities === [] ? null : reset($similarities),
+            array_filter($similarities, fn (float $similarity) => $similarity >= $cutoff),
+            $top,
         ];
     }
 
     /**
-     * Reciprocal Rank Fusion: score = Σ 1 / (k + rank). Rank-based, so the two
-     * channels' scores never need to be on the same scale.
+     * Reciprocal Rank Fusion: score = Σ weight / (k + rank). Rank-based, so the
+     * two channels' scores never need to be on the same scale. Vector hits
+     * count fully; keyword hits are weighted by how much of the query they
+     * matched, so a product that only matches "מתנה" in a long sentence
+     * cannot outrank a product that matches its meaning.
      *
-     * @param  list<array<int, float>>  $rankings
+     * @param  array<int, float>|null  $vectorRanking
+     * @param  array<int, float>  $keywordRanking
      * @return list<int>
      */
-    private function fuse(array $rankings): array
+    private function fuse(?array $vectorRanking, array $keywordRanking): array
     {
         $scores = [];
 
-        foreach ($rankings as $ranking) {
+        foreach ([[$vectorRanking ?? [], false], [$keywordRanking, true]] as [$ranking, $weighted]) {
             $rank = 0;
 
-            foreach (array_keys($ranking) as $id) {
-                $scores[$id] = ($scores[$id] ?? 0) + 1 / ($this->rrfK + ++$rank);
+            foreach ($ranking as $id => $score) {
+                $weight = $weighted ? $score : 1.0;
+                $scores[$id] = ($scores[$id] ?? 0) + $weight / ($this->rrfK + ++$rank);
             }
         }
 

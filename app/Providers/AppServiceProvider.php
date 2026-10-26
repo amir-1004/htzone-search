@@ -47,6 +47,7 @@ class AppServiceProvider extends ServiceProvider
             $app->make(Embedder::class),
             config('search.embeddings'),
             config('search.vector_min_similarity'),
+            config('search.vector_relative_margin'),
             config('search.rrf_k'),
             config('search.max_results'),
         ));

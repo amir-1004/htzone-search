@@ -70,6 +70,10 @@ class KeywordRanker
         $maxWeight = max($this->fieldWeights);
         $scores = [];
 
+        // A short query must match in full ("שואב אבק" is not every product with dust in
+        // its description); longer, conversational queries need a share of their terms.
+        $required = max(min(count($groups), 2), (int) ceil(count($groups) * $this->minCoverage));
+
         foreach ($documents as $id => $document) {
             $total = 0.0;
             $covered = 0;
@@ -89,7 +93,7 @@ class KeywordRanker
                 }
             }
 
-            if ($covered / count($groups) >= $this->minCoverage) {
+            if ($covered >= $required) {
                 $scores[$id] = $total / count($groups);
             }
         }

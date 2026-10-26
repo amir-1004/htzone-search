@@ -48,7 +48,14 @@ return [
     |
     */
 
-    'vector_min_similarity' => (float) env('SEARCH_VECTOR_MIN_SIMILARITY', 0.30),
+    // Calibrated on the golden set (search:eval): gibberish tops out at 0.27,
+    // the weakest real query (a bare brand name) starts at 0.41.
+    'vector_min_similarity' => (float) env('SEARCH_VECTOR_MIN_SIMILARITY', 0.34),
+
+    // Keep only vector hits close to the best one. Average similarity to an
+    // unrelated product is 0.25-0.33, so an absolute cutoff alone lets in
+    // hundreds of weak matches.
+    'vector_relative_margin' => 0.10,
 
     // Fraction of the query's terms a product must match to count as a keyword hit.
     'keyword_min_coverage' => 0.5,
