@@ -50,7 +50,7 @@ class CatalogSeeder extends Seeder
                 'category' => $row['category'],
                 'subcategory' => $row['subcategory'],
                 'description' => $row['description'],
-                'attributes' => $row['attributes'],
+                'specs' => $row['attributes'],
                 'image_url' => $row['image_url'],
                 'price' => DemoPrice::for($row['id'], $row['subcategory']),
                 'price_is_demo' => true,

@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('category')->index();
             $table->string('subcategory')->index();
             $table->text('description');
-            $table->text('attributes');
+            $table->text('specs');
             $table->string('image_url');
             $table->unsignedInteger('price');
             $table->boolean('price_is_demo')->default(true);
