@@ -39,6 +39,7 @@ class ProductSearch
 
         $vectorRanking = null;
         $topSimilarity = null;
+        $degraded = false;
 
         if ($useVectors && $this->index->hasVectors()) {
             $embedStart = hrtime(true);
@@ -47,6 +48,8 @@ class ProductSearch
 
             if ($queryVector !== null) {
                 [$vectorRanking, $topSimilarity] = $this->rankByVector($queryVector, $documents);
+            } else {
+                $degraded = true;
             }
         }
 
@@ -62,6 +65,7 @@ class ProductSearch
             timings: $timings,
             topSimilarity: $topSimilarity,
             keywordHits: count($keywordRanking),
+            degraded: $degraded,
         );
     }
 

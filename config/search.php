@@ -27,7 +27,8 @@ return [
     'embeddings' => [
         'model' => env('EMBEDDING_MODEL', 'text-embedding-3-large'),
         'dimensions' => 512,
-        'query_timeout' => 2.0,
+        // Usually 300-500ms; 2s timed out on a real cold call during browser testing.
+        'query_timeout' => 3.0,
         'batch_timeout' => 60.0,
         'batch_size' => 100,
         'query_cache_ttl' => 60 * 60 * 24,

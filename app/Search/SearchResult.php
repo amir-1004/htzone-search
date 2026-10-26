@@ -12,6 +12,7 @@ class SearchResult
      * @param  list<int>  $ids  Ranked product ids.
      * @param  array<string, int>  $timings  Milliseconds per stage.
      * @param  int  $keywordHits  Products that matched the query's words, not only its meaning.
+     * @param  bool  $degraded  The meaning channel should have run but the provider failed.
      */
     public function __construct(
         public readonly array $ids,
@@ -19,6 +20,7 @@ class SearchResult
         public readonly array $timings = [],
         public readonly ?float $topSimilarity = null,
         public readonly int $keywordHits = 0,
+        public readonly bool $degraded = false,
     ) {}
 
     /**

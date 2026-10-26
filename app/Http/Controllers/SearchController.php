@@ -39,6 +39,7 @@ class SearchController extends Controller
                 'total' => count($result->ids),
                 'page' => $page,
                 'mode' => $result->mode,
+                'degraded' => $result->degraded,
                 'timings' => $result->timings,
             ]);
         }
@@ -48,6 +49,7 @@ class SearchController extends Controller
                 'query' => $query,
                 'mode' => $result->mode,
                 'match' => $result->match(),
+                'degraded' => $result->degraded,
                 'took_ms' => $result->timings['total_ms'] ?? 0,
             ],
         ]);
