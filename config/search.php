@@ -72,6 +72,8 @@ return [
 
     'field_weights' => [
         'name' => 3.0,
+        // English label from the catalog's image URL: an English name for every product.
+        'image_label' => 2.5,
         'brand' => 3.0,
         'subcategory' => 2.0,
         'category' => 1.5,

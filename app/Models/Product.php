@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 #[Fillable([
     'sku', 'name', 'brand', 'category', 'subcategory',
-    'description', 'specs', 'image_url', 'price', 'price_is_demo',
+    'description', 'specs', 'image_url', 'image_label', 'price', 'price_is_demo',
 ])]
 #[Hidden(['embedding', 'embedding_hash'])]
 class Product extends Model

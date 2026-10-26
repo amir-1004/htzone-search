@@ -52,6 +52,7 @@ class CatalogSeeder extends Seeder
                 'description' => $row['description'],
                 'specs' => $row['attributes'],
                 'image_url' => $row['image_url'],
+                'image_label' => $this->imageLabel($row['image_url']),
                 'price' => DemoPrice::for($row['id'], $row['subcategory']),
                 'price_is_demo' => true,
                 'created_at' => $now,
@@ -70,5 +71,18 @@ class CatalogSeeder extends Seeder
         }
 
         $this->command?->info('Imported '.count($rows).' products.');
+    }
+
+    /**
+     * Every image in the supplied catalog is a placeholder whose URL carries an English
+     * label for the product (placehold.co/...?text=dog%20leash). It is the only English
+     * name most products have, so it is kept for search.
+     */
+    private function imageLabel(string $url): ?string
+    {
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        $label = trim((string) ($query['text'] ?? ''));
+
+        return $label !== '' ? $label : null;
     }
 }

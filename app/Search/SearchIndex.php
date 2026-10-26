@@ -16,7 +16,7 @@ class SearchIndex
      * Bump when the shape of a cached document changes, so a deploy never
      * reads an index built by older code.
      */
-    private const FORMAT = 7;
+    private const FORMAT = 8;
 
     /** @var array<int, array{fields: array<string, array<string, true>>, vector: ?string, subcategory: string}>|null */
     private ?array $documents = null;
@@ -63,12 +63,12 @@ class SearchIndex
         $documents = [];
 
         Product::query()
-            ->select(['id', 'name', 'brand', 'category', 'subcategory', 'description', 'specs', 'embedding'])
+            ->select(['id', 'name', 'brand', 'category', 'subcategory', 'description', 'specs', 'image_label', 'embedding'])
             ->lazyById(250)
             ->each(function (Product $product) use (&$documents) {
                 $fields = [];
 
-                foreach (['name', 'brand', 'subcategory', 'category', 'specs', 'description'] as $field) {
+                foreach (['name', 'image_label', 'brand', 'subcategory', 'category', 'specs', 'description'] as $field) {
                     $tokens = [];
                     foreach ($this->normalizer->tokens((string) $product->{$field}) as $token) {
                         $tokens += $this->normalizer->variants($token);

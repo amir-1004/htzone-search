@@ -43,6 +43,13 @@ it('finds Apple phones for "אייפון" through the alias dictionary', functio
     expect($skus->sort()->values()->all())->toBe(['P0401', 'P0407', 'P0413']);
 });
 
+it('treats the English label shown on the product image as an exact match', function () {
+    $this->getJson('/api/search?q=dog leash')
+        ->assertOk()
+        ->assertJsonPath('data.0.sku', 'P0937')
+        ->assertJsonPath('search.match', 'exact');
+});
+
 it('paginates the ranked results', function () {
     $first = $this->getJson('/api/search?q=אוזניות')->assertOk();
     $second = $this->getJson('/api/search?q=אוזניות&page=2')->assertOk();

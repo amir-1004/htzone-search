@@ -16,6 +16,12 @@ it('imports every product from the catalog CSV', function () {
         ->and($product->image_url)->toStartWith('https://');
 });
 
+it('keeps the English label from the placeholder image URL', function () {
+    $this->seed(CatalogSeeder::class);
+
+    expect(Product::where('sku', 'P0937')->value('image_label'))->toBe('dog leash');
+});
+
 it('stores an empty brand as null', function () {
     $this->seed(CatalogSeeder::class);
 
