@@ -8,6 +8,8 @@ use App\Search\VectorMath;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\RequestException;
+use Throwable;
 
 #[Signature('catalog:embed {--force : Re-embed every product, even unchanged ones}')]
 #[Description('Compute meaning vectors for products whose text changed since the last run')]
@@ -32,7 +34,18 @@ class EmbedCatalog extends Command
 
         foreach ($pending->chunk(config('search.embeddings.batch_size')) as $batch) {
             $texts = $batch->map->embeddingText()->values()->all();
-            $vectors = $embedder->embed($texts, config('search.embeddings.batch_timeout'));
+
+            try {
+                $vectors = $embedder->embed($texts, config('search.embeddings.batch_timeout'));
+            } catch (Throwable $e) {
+                $this->newLine();
+                $this->error('Embedding provider failed: '.($e instanceof RequestException
+                    ? $e->response->status().' '.$e->response->json('error.message', '')
+                    : $e->getMessage()));
+                $this->line('Search keeps working on keywords only. Products embedded so far are saved.');
+
+                return self::FAILURE;
+            }
 
             foreach ($batch->values() as $i => $product) {
                 $product->forceFill([
