@@ -59,7 +59,7 @@ class ProductSearch
         ['scores' => $keywordRanking, 'complete' => $completeMatches] = $this->keywords->match($query, $documents);
 
         if ($vectorRanking !== null && $this->coherence) {
-            $vectorRanking = $this->keepCoherent($vectorRanking, $keywordRanking, $completeMatches, $documents);
+            [$vectorRanking, $keywordRanking] = $this->keepCoherent($vectorRanking, $keywordRanking, $completeMatches, $documents);
         }
         $ids = $this->fuse($vectorRanking, $keywordRanking);
         $timings['rank_ms'] = $this->elapsed($rankStart);
@@ -146,7 +146,7 @@ class ProductSearch
      * @param  array<int, float>  $vectorRanking
      * @param  array<int, float>  $keywordRanking
      * @param  array<int, true>  $completeMatches
-     * @return array<int, float>
+     * @return array{0: array<int, float>, 1: array<int, float>} Vector and keyword rankings, filtered.
      */
     private function keepCoherent(array $vectorRanking, array $keywordRanking, array $completeMatches, array $documents): array
     {
@@ -169,11 +169,15 @@ class ProductSearch
             );
         }
 
-        return array_filter(
-            $vectorRanking,
-            fn (int $id) => isset($core[$id]) || isset($keywordRanking[$id]) || isset($focus[$subcategoryOf($id)]),
-            ARRAY_FILTER_USE_KEY,
-        );
+        // Products that contain every query term always stay. Everything else (meaning-only
+        // hits, and partial keyword hits like a dashcam matching "דרך" in "קפה חם בדרך
+        // לעבודה") must sit in the query's subcategories.
+        $onTopic = fn (int $id) => isset($completeMatches[$id]) || isset($core[$id]) || isset($focus[$subcategoryOf($id)]);
+
+        return [
+            array_filter($vectorRanking, $onTopic, ARRAY_FILTER_USE_KEY),
+            array_filter($keywordRanking, $onTopic, ARRAY_FILTER_USE_KEY),
+        ];
     }
 
     /**
