@@ -140,7 +140,7 @@
                             <div class="flex flex-1 flex-col items-center gap-1 p-4 text-center">
                                 <p x-show="product.brand" x-text="product.brand" class="text-xs text-muted" dir="auto"></p>
                                 <h3 x-text="product.name" class="line-clamp-2 min-h-[2.75rem] font-medium leading-snug" dir="auto"></h3>
-                                <p x-text="formatPrice(product.price)" class="mt-auto pt-2 text-2xl font-extrabold"></p>
+                                <p x-show="product.price !== null" x-text="formatPrice(product.price)" class="mt-auto pt-2 text-2xl font-extrabold"></p>
                             </div>
                         </li>
                     </template>
@@ -184,12 +184,6 @@
                 </div>
             </section>
         </main>
-
-        <footer class="border-t border-line bg-white">
-            <p class="mx-auto max-w-6xl px-4 py-5 text-center text-xs text-muted">
-                {{ __('Prices are for illustration only: the catalog was supplied without prices.') }}
-            </p>
-        </footer>
     </div>
 </body>
 </html>

@@ -25,8 +25,8 @@ class ProductResource extends JsonResource
             'category' => $this->category,
             'subcategory' => $this->subcategory,
             'image_url' => $this->image_url,
-            'price' => $this->price,
-            'price_is_demo' => $this->price_is_demo,
+            // Only a price that came with the catalog: missing fields are not shown.
+            'price' => $this->price_is_demo ? null : $this->price,
         ];
     }
 }

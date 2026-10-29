@@ -29,12 +29,27 @@ it('returns products with image, name and price', function () {
     $this->getJson('/api/search?q=שואב אבק')
         ->assertOk()
         ->assertJsonStructure([
-            'data' => [['sku', 'name', 'brand', 'image_url', 'price', 'price_is_demo']],
+            'data' => [['sku', 'name', 'brand', 'image_url', 'price']],
             'meta' => ['current_page', 'per_page', 'total'],
             'search' => ['query', 'mode', 'match', 'degraded', 'took_ms'],
         ])
-        ->assertJsonPath('data.0.price_is_demo', true)
         ->assertJsonPath('search.match', 'exact');
+});
+
+it('does not send a price the catalog did not supply', function () {
+    $response = $this->getJson('/api/search?q=שואב אבק')->assertOk();
+
+    expect($response->json('data.0.price'))->toBeNull()
+        ->and($response->json('data.0'))->not->toHaveKey('price_is_demo');
+});
+
+it('sends a price that came with the catalog', function () {
+    $sku = $this->getJson('/api/search?q=שואב אבק')->json('data.0.sku');
+    Product::query()->where('sku', $sku)->update(['price' => 1290, 'price_is_demo' => false]);
+
+    $this->getJson('/api/search?q=שואב אבק')
+        ->assertJsonPath('data.0.sku', $sku)
+        ->assertJsonPath('data.0.price', 1290);
 });
 
 it('finds Apple phones for "אייפון" through the alias dictionary', function () {
